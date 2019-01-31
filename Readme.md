@@ -126,6 +126,7 @@ Options:
   --trash                  After copying files, move the old files to the
                            trash.
   --allow-duplicates       Import the file even if it's already been imported.
+  --separate-media-folders Put files in separate folders for photos, audio and video at their final destination.
   --help                   Show this message and exit.
 ```
 
@@ -288,6 +289,8 @@ You can, of course, ask me to change the location and time. I'll happily update 
 ```
 ./elodie.py update --location="Las Vegas, NV" --time="2015-04-15" /where/i/want/my/photos/to/go/2015-09-Sep/Unknown\ Location/2015-09-27_01-41-38-_dsc8705.dng /where/i/want/my/photos/to/go/2015-09-Sep/Unknown\ Location/2015-09-27_01-41-38-_dsc8705.nef
 ```
+
+To put media according to it's type to a folder like 'Audio', 'Video' or 'Photo' at it's final destination add `--separate-media-folders`.
 
 ## What about photos I take in the future?
 

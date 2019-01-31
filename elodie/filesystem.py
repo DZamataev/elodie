@@ -14,6 +14,7 @@ import time
 from elodie import compatability
 from elodie import geolocation
 from elodie import log
+from elodie import constants
 from elodie.config import load_config
 from elodie.localstorage import Db
 from elodie.media.base import Base, get_all_subclasses
@@ -215,10 +216,10 @@ class FileSystem(object):
 
         return self.cached_folder_path_definition
 
-    def get_folder_path(self, metadata):
+    def get_folder_path(self, metadata, media_name=None):
         """Given a media's metadata this function returns the folder path as a string.
 
-        :param dict metadata: Metadata dictionary.
+        :param metadata dict: Metadata dictionary.
         :returns: str
         """
         path_parts = self.get_folder_path_definition()
@@ -232,69 +233,36 @@ class FileSystem(object):
             #  Unknown Location - when neither an album nor location exist
             for this_part in path_part:
                 part, mask = this_part
-                this_path = self.get_dynamic_path(part, mask, metadata)
-                if this_path:
-                    path.append(this_path.strip())
-                    # We break as soon as we have a value to append
-                    # Else we continue for fallbacks
+                if part in ('date', 'day', 'month', 'year'):
+                    path.append(
+                        time.strftime(mask, metadata['date_taken'])
+                    )
                     break
+                elif part in ('location', 'city', 'state', 'country'):
+                    place_name = geolocation.place_name(
+                        metadata['latitude'],
+                        metadata['longitude']
+                    )
+
+                    location_parts = re.findall('(%[^%]+)', mask)
+                    parsed_folder_name = self.parse_mask_for_location(
+                        mask,
+                        location_parts,
+                        place_name,
+                    )
+                    path.append(parsed_folder_name)
+                    break
+                elif part in ('album', 'camera_make', 'camera_model'):
+                    if metadata[part]:
+                        path.append(metadata[part])
+                        break
+                elif part.startswith('"') and part.endswith('"'):
+                    path.append(part[1:-1])
+
+        if (constants.separate_media_folders and media_name):
+            path.append(media_name)
+
         return os.path.join(*path)
-
-    def get_dynamic_path(self, part, mask, metadata):
-        """Parse a specific folder's name given a mask and metadata.
-
-        :param part: Name of the part as defined in the path (i.e. date from %date)
-        :param mask: Mask representing the template for the path (i.e. %city %state
-        :param metadata: Metadata dictionary.
-        :returns: str
-        """
-
-        # Each part has its own custom logic and we evaluate a single part and return
-        #  the evaluated string.
-        if part in ('custom'):
-            custom_parts = re.findall('(%[a-z_]+)', mask)
-            folder = mask
-            for i in custom_parts:
-                folder = folder.replace(
-                    i,
-                    self.get_dynamic_path(i[1:], i, metadata)
-                )
-            return folder
-        elif part in ('date'):
-            config = load_config()
-            # If Directory is in the config we assume full_path and its
-            #  corresponding values (date, location) are also present
-            config_directory = self.default_folder_path_definition
-            if('Directory' in config):
-                config_directory = config['Directory']
-            date_mask = ''
-            if 'date' in config_directory:
-                date_mask = config_directory['date']
-            return time.strftime(date_mask, metadata['date_taken'])
-        elif part in ('day', 'month', 'year'):
-            return time.strftime(mask, metadata['date_taken'])
-        elif part in ('location', 'city', 'state', 'country'):
-            place_name = geolocation.place_name(
-                metadata['latitude'],
-                metadata['longitude']
-            )
-
-            location_parts = re.findall('(%[^%]+)', mask)
-            parsed_folder_name = self.parse_mask_for_location(
-                mask,
-                location_parts,
-                place_name,
-            )
-            return parsed_folder_name
-        elif part in ('album', 'camera_make', 'camera_model'):
-            if metadata[part]:
-                return metadata[part]
-        elif part.startswith('"') and part.endswith('"'):
-            # Fallback string
-            return part[1:-1]
-
-        return ''
-
 
     def parse_mask_for_location(self, mask, location_parts, place_name):
         """Takes a mask for a location and interpolates the actual place names.
@@ -371,8 +339,9 @@ class FileSystem(object):
 
         media.set_original_name()
         metadata = media.get_metadata()
+        media_name = media.__name__
 
-        directory_name = self.get_folder_path(metadata)
+        directory_name = self.get_folder_path(metadata, media_name)
 
         dest_directory = os.path.join(destination, directory_name)
         file_name = self.get_file_name(media)
