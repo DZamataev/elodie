@@ -1,5 +1,18 @@
 #!/usr/bin/env python
 
+from elodie.result import Result
+from elodie.media.video import Video
+from elodie.media.photo import Photo
+from elodie.media.audio import Audio
+from elodie.media.text import Text
+from elodie.media.media import Media
+from elodie.media.base import Base, get_all_subclasses
+from elodie.localstorage import Db
+from elodie.filesystem import FileSystem
+from elodie.compatability import _decode
+from elodie import log
+from elodie import geolocation
+from elodie import constants
 from __future__ import print_function
 import os
 import re
@@ -15,20 +28,6 @@ from elodie.dependencies import verify_dependencies
 if not verify_dependencies():
     sys.exit(1)
 
-from elodie import constants
-from elodie import geolocation
-from elodie import log
-from elodie.compatability import _decode
-from elodie.filesystem import FileSystem
-from elodie.localstorage import Db
-from elodie.media.base import Base, get_all_subclasses
-from elodie.media.media import Media
-from elodie.media.text import Text
-from elodie.media.audio import Audio
-from elodie.media.photo import Photo
-from elodie.media.video import Video
-from elodie.result import Result
-
 
 FILESYSTEM = FileSystem()
 
@@ -42,28 +41,28 @@ def import_file(_file, destination, album_from_folder, trash, allow_duplicates, 
     """
     if not os.path.exists(_file):
         log.warn('Could not find %s' % _file)
-        print('{"source":"%s", "error_msg":"Could not find %s"}' % \
-            (_file, _file))
+        safeprint('{"source":"%s", "error_msg":"Could not find %s"}' %
+                  (_file, _file))
         return
     # Check if the source, _file, is a child folder within destination
     elif destination.startswith(os.path.abspath(os.path.dirname(_file))+os.sep):
-        print('{"source": "%s", "destination": "%s", "error_msg": "Source cannot be in destination"}' % (_file, destination))
+        safeprint('{"source": "%s", "destination": "%s", "error_msg": "Source cannot be in destination"}' % (
+            _file, destination))
         return
-
 
     media = Media.get_class_by_file(_file, get_all_subclasses())
     if not media:
         log.warn('Not a supported file (%s)' % _file)
-        print('{"source":"%s", "error_msg":"Not a supported file"}' % _file)
+        safeprint('{"source":"%s", "error_msg":"Not a supported file"}' % _file)
         return
 
     if album_from_folder:
         media.set_album_from_folder()
 
     dest_path = FILESYSTEM.process_file(_file, destination,
-        media, allowDuplicate=allow_duplicates, move=move_source)
+                                        media, allowDuplicate=allow_duplicates, move=move_source)
     if dest_path:
-        print('%s -> %s' % (_file, dest_path))
+        safeprint('%s -> %s' % (_file, dest_path))
     if trash:
         send2trash(_file)
 
@@ -117,7 +116,7 @@ def _import(destination, source, file, album_from_folder, trash, allow_duplicate
 
     for current_file in files:
         dest_path = import_file(current_file, destination, album_from_folder,
-                    trash, allow_duplicates, move_source)
+                                trash, allow_duplicates, move_source)
         result.append((current_file, dest_path))
         has_errors = has_errors is True or not dest_path
 
@@ -142,7 +141,7 @@ def _generate_db(source, debug):
     if not os.path.isdir(source):
         log.error('Source is not a valid directory %s' % source)
         sys.exit(1)
-        
+
     db = Db()
     db.backup_hash_db()
     db.reset_hash_db()
@@ -151,10 +150,11 @@ def _generate_db(source, debug):
         result.append((current_file, True))
         db.add_hash(db.checksum(current_file), current_file)
         log.progress()
-    
+
     db.update_hash_db()
     log.progress('', True)
     result.write()
+
 
 @click.command('verify')
 @click.option('--debug', default=False, is_flag=True,
@@ -192,8 +192,8 @@ def update_location(media, file_path, location_name):
             'latitude'], location_coords['longitude'])
         if not location_status:
             log.error('Failed to update location')
-            print(('{"source":"%s",' % file_path,
-                '"error_msg":"Failed to update location"}'))
+            safeprint(('{"source":"%s",' % file_path,
+                       '"error_msg":"Failed to update location"}'))
             sys.exit(1)
     return True
 
@@ -207,7 +207,7 @@ def update_time(media, file_path, time_string):
     elif re.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}\d{2}$', time_string):
         msg = ('Invalid time format. Use YYYY-mm-dd hh:ii:ss or YYYY-mm-dd')
         log.error(msg)
-        print('{"source":"%s", "error_msg":"%s"}' % (file_path, msg))
+        safeprint('{"source":"%s", "error_msg":"%s"}' % (file_path, msg))
         sys.exit(1)
 
     time = datetime.strptime(time_string, time_format)
@@ -247,8 +247,8 @@ def _update(album, location, time, title, paths, debug):
             has_errors = True
             result.append((current_file, False))
             log.warn('Could not find %s' % current_file)
-            print('{"source":"%s", "error_msg":"Could not find %s"}' % \
-                (current_file, current_file))
+            safeprint('{"source":"%s", "error_msg":"Could not find %s"}' %
+                      (current_file, current_file))
             continue
 
         current_file = os.path.expanduser(current_file)
@@ -260,10 +260,10 @@ def _update(album, location, time, title, paths, debug):
         current_directory = os.path.dirname(current_file)
         destination_depth = -1 * len(FILESYSTEM.get_folder_path_definition())
         destination = os.sep.join(
-                          os.path.normpath(
-                              current_directory
-                          ).split(os.sep)[:destination_depth]
-                      )
+            os.path.normpath(
+                current_directory
+            ).split(os.sep)[:destination_depth]
+        )
 
         media = Media.get_class_by_file(current_file, get_all_subclasses())
         if not media:
@@ -313,10 +313,10 @@ def _update(album, location, time, title, paths, debug):
                     original_base_name.replace('-%s' % original_title, ''))
 
             dest_path = FILESYSTEM.process_file(current_file, destination,
-                updated_media, move=True, allowDuplicate=True)
+                                                updated_media, move=True, allowDuplicate=True)
             log.info(u'%s -> %s' % (current_file, dest_path))
-            print('{"source":"%s", "destination":"%s"}' % (current_file,
-                dest_path))
+            safeprint('{"source":"%s", "destination":"%s"}' % (current_file,
+                                                               dest_path))
             # If the folder we moved the file out of or its parent are empty
             # we delete it.
             FILESYSTEM.delete_directory_if_empty(os.path.dirname(current_file))
@@ -330,9 +330,20 @@ def _update(album, location, time, title, paths, debug):
             result.append((current_file, False))
 
     result.write()
-    
+
     if has_errors:
         sys.exit(1)
+
+
+def safeprint(s):
+    try:
+        print(s)
+    except UnicodeEncodeError:
+        for c in s:
+            try:
+                print(c, end='')
+            except UnicodeEncodeError:
+                print('?', end='')
 
 
 @click.group()
