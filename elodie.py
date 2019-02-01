@@ -1,18 +1,5 @@
 #!/usr/bin/env python
 
-from elodie.result import Result
-from elodie.media.video import Video
-from elodie.media.photo import Photo
-from elodie.media.audio import Audio
-from elodie.media.text import Text
-from elodie.media.media import Media
-from elodie.media.base import Base, get_all_subclasses
-from elodie.localstorage import Db
-from elodie.filesystem import FileSystem
-from elodie.compatability import _decode
-from elodie import log
-from elodie import geolocation
-from elodie import constants
 from __future__ import print_function
 import os
 import re
@@ -27,6 +14,20 @@ from send2trash import send2trash
 from elodie.dependencies import verify_dependencies
 if not verify_dependencies():
     sys.exit(1)
+
+from elodie import constants
+from elodie import geolocation
+from elodie import log
+from elodie.compatability import _decode
+from elodie.filesystem import FileSystem
+from elodie.localstorage import Db
+from elodie.media.base import Base, get_all_subclasses
+from elodie.media.media import Media
+from elodie.media.text import Text
+from elodie.media.audio import Audio
+from elodie.media.photo import Photo
+from elodie.media.video import Video
+from elodie.result import Result
 
 
 FILESYSTEM = FileSystem()
