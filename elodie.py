@@ -89,12 +89,15 @@ def import_file(_file, destination, album_from_folder, trash, allow_duplicates, 
               help='Put files in separate folders for photos, audio and video at their final destination. Overrides the value in constants.py with True.')
 @click.option('--move-source', default=False, is_flag=True,
               help='Move source instead of copy it.')
+@click.option('--delete-duplicates', default=False, is_flag=True,
+              help='If True, duplicate files will get deleted on import.')      
 @click.argument('paths', nargs=-1, type=click.Path())
-def _import(destination, source, file, album_from_folder, trash, allow_duplicates, debug, separate_media_folders, move_source, paths):
+def _import(destination, source, file, album_from_folder, trash, allow_duplicates, debug, separate_media_folders, move_source, delete_duplicates, paths):
     """Import files or directories by reading their EXIF and organizing them accordingly.
     """
     constants.debug = debug
     constants.separate_media_folders = separate_media_folders
+    constants.delete_duplicates = delete_duplicates
     has_errors = False
     result = Result()
 
